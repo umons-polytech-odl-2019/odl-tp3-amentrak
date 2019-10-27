@@ -1,0 +1,284 @@
+= Programmation en Java : exceptions et fichiers
+François Roland <francois.roland@umons.ac.be>
+2017-10-31
+:icons: font
+:experimental:
+ifdef::backend-html5[]
+:source-highlighter: highlightjs
+endif::[]
+ifdef::backend-pdf[]
+:source-highlighter: coderay
+:notitle:
+
+[discrete]
+= {doctitle}
+endif::[]
+
+Durant cette séance, nous allons étudier les mécanismes de gestion d'exceptions et ceux de la lecture et l'écriture de fichiers.
+
+== Notions
+
+=== Traitement des exceptions
+
+==== Motivation
+
+Lorsque je programme, j'aime me concentrer sur le scénario principal, celui où tout se passe comme prévu.
+Prendre en compte tous les scénarios alternatifs rendrait très vite le code illisible.
+C'est pour permettre cette lisibilité que le mécanisme des exceptions a été créé.
+Lorsqu'une exception est lancée, elle permet de créer un court-circuit à travers le code afin de pouvoir traiter ces cas exceptionnels à l'endroit adéquat.
+
+Il existe plusieurs manières de gérer une exception :
+
+* atteindre le but poursuivi d'une autre manière
+** en utilisant un autre service
+** en utilisant un autre moyen de communication
+** en utilisant une réponse à partir d'un cache
+* en ré-essayant (retry mechanism)
+* en enregistrant un message de service (logging)
+* en affichant un message à l'utilisateur
+
+A chaque endroit dans le code où une exception peut être interceptée, nous devons choisir entre appliquer une de ces stratégies ou laisser remonter cette exception.
+Laisser remonter l'exception signifie que, ne pouvant pas prendre de bonne décision à un endroit donné, nous choisissons de reporter cette décision dans le code de l'appelant.
+
+Ceci étant dit, l'utilisation des exceptions doit rester, comme son nom l'indique, exceptionnelle.
+
+==== Syntaxe
+
+[source,java]
+.Structure try - catch - finally
+----
+try {
+    ... // <1>
+} catch (Exception1 | Exception2 e) {
+    ... // <2>
+} catch (Exception3 e) {
+    ...
+} finally {
+    ... // <3>
+}
+----
+<1> Cette partie du code est celle où une exception peut être lancée, où remonter d'un bout du code appelé.
+<2> Cette partie est appelée uniquement si une exception du type `Exception1` ou `Exception2` est captée dans la première partie.
+Il est possible de créer différents blocs d'instructions pour répondre différemment à différents types d'exception.
+<3> Ce dernier bloc sera exécuté après les 2 autres, quoi qu'il arrive.
+Son but est de s'assurer que le système reste dans un état correct.
+Il permet de libérer les ressources utilisées.
+
+[TIP]
+====
+Les clauses `catch` et `finally` sont optionnelles (il en faut au moins une des deux).
+On peut donc créer des structures
+
+[source,java]
+----
+try {
+    ...
+} catch (...) {
+    ...
+}
+----
+
+ou
+
+[source,java]
+----
+try {
+    ...
+} finally {
+    ...
+}`
+----
+
+====
+
+==== Type d'exception
+
+Le langage Java fournit 2 types d'exceptions.
+
+[[catched-exceptions]]
+===== Catched exceptions
+
+Ces exceptions descendent de la classe `java.lang.Exception`.
+Nous devons les traiter explicitement, soit dans un block `catch`, soit avec une clause `throws` dans la signature de la méthode.
+`IOException` est un bon exemple de _catched exceptions_.
+
+[source,java]
+.Clause `throws`
+----
+private void doSomethingThatThrowsException() throws ACatchedException {
+    ...
+    if (somethingIsWrong()) {
+        throw new ACatchedException();
+    }
+    ...
+}
+----
+
+La figure <<ioexception-hierarchy>> donne un bon exemple d'exceptions qui
+
+[[ioexception-hierarchy]]
+.Hiérarchie de `IOException`
+image::IOException-hierarchy.svg[align="center", scaledwidth="80%"]
+
+===== Runtime exceptions
+
+Ces exceptions étendent toutes `java.lang.RuntimeException`.
+
+Contrairement aux <<catched-exceptions>>, les runtime exceptions ne nous forcent pas à les traiter immédiatement.
+Elles peuvent concerner des situations imprévisibles telle que `ConcurrentModificationException`.
+Elles concernent souvent des données liées à un usage incorrect telles que `ArithmeticException`, `IllegalArgumentExcption` ou `NullPointerException`.
+
+La tendance est de privilégier les runtime exceptions parce qu'elles imposent moins de contraintes.
+Il m'arrive souvent de créer un nombre restreint de points d'entrées dans une application et d'y concentrer la gestion des exceptions.
+Je peux ainsi arrêter l'exécution de mon programme à n'importe quel endroit tout en gardant une gestion d'erreur consistante.
+
+=== Fichiers et flux de données
+
+==== Flux de données
+
+===== Classification
+
+L'API Java classe les flux I/O selon 2 critères.
+Le premier critère est la direction du flux.
+Nous parlons d'input stream ou flux entrant lorsque nous lisons les données depuis une source vers le programme.
+
+.Oracle. _Input stream_. Sur Oracle Java Documentation docs.oracle.com (en ligne). Page consultée le 01/11/2017. https://docs.oracle.com/javase/tutorial/essential/io/streams.html
+image::io-ins.png[align="center", scaledwidth="60%"]
+
+Nous parlons d'output stream ou flux sortant lorsque nous écrivons les données du programme vers une destination.
+
+.Oracle. _Output stream_. Sur Oracle Java Documentation docs.oracle.com (en ligne). Page consultée le 01/11/2017. https://docs.oracle.com/javase/tutorial/essential/io/streams.html
+image::io-outs.png[align="center", scaledwidth="60%"]
+
+Le second critère de classification différencie les flux de données binaires des flux de données sous forme de caractères.
+Ce classement est représenté par les 4 classes abstraites suivantes :
+
+.Classement des flux I/O en Java
+[cols="h,2*", options="header"]
+|===
+|
+|Input
+|Output
+
+|Données binaires
+|InputStream
+|OutputStream
+
+|Caractères
+|Reader
+|Writer
+|===
+
+De ces classes abstraites descendent toute une hiérarchie de classes.
+Certaines servent à accéder aux différents types de sources ou destinations de données.
+Les autres permettent de décorer (design pattern décorateur) un flux (cryptage, compression, buffer, ...).
+
+NOTE: Les flux `System.in`, `System.out` et `System.err` permettent de travailler avec les flux standards du processus.
+
+[WARNING]
+====
+Fermer vos flux lorsqu'ils ne sont plus nécessaire est très important.
+Si vous oubliez de fermer un flux, la ressource restera utilisée au niveau système jusqu'à la fin du processus de votre logiciel.
+Depuis Java 7, il existe une manière simple de s'assurer que les ressources soient fermées :
+
+[source,java]
+.Structure try with resources
+----
+try (BufferedReader br = new BufferedReader(new FileReader(path))) {
+    return br.readLine();
+}
+----
+
+L'alternative consiste à appeler la méthode `close()` dans un bloc `finally`.
+====
+
+===== Sérialisation
+
+Nous parlons de sérialisation lorsque nous transformons un objet en mémoire en un flux binaire.
+Nous parlons de désérialisation pour l'opération réciproque.
+
+Pour sérialiser ou désérialiser un objet, cet objet doit implémenter l'interface `java.io.Serializable`.
+Cette interface est une interface de _marquage_.
+Elle nous permet de signaler à la JVM que nous avons analyser la structure d'une classe et estimé qu'elle répond à une série de critères.
+Ces critères sont détaillés dans la https://docs.oracle.com/javase/8/docs/api/java/io/Serializable.html[Javadoc de l'interface].
+Cette documentation décrit également comment gérer l'évolution dans le temps de la structure d'une classe sérialisée.
+
+Pour lire et écrire ces objets, nous utilisons les implémentations des interfaces `java.io.ObjectInput` et `java.io.ObjectOutput`.
+
+TIP: Pour qu'une classe soit sérialisable, il faut que toutes les classes qu'elle référence soient sérialisable.
+
+===== Manipulation des fichiers
+
+Java 7 nous a apporté beaucoup de facilités pour manipuler les fichiers.
+`java.nio.file.Paths` offre plusieurs méthodes pour localiser un fichier dans le système de fichier.
+`java.nio.file.Files` permet de manipuler ces fichiers.
+
+[source,java]
+.Lecture d'un fichier texte.
+----
+Path filePath = Paths.get("/home/user/myfile.txt");
+Charset utf8Charset = Charset.forName("UTF-8");
+try (BufferedReader reader = Files.newBufferedReader(filePath, utf8Charset)) {
+    reader.lines().forEach(line -> ...);
+}
+----
+
+[source,java]
+.Sérialisation d'un objet.
+----
+Path filePath = Paths.get("/home/user/mydata.ser");
+try (OutputStream output = Files.newOutputStream(filePath)) {
+    ObjectOutput objectOutput = new ObjectOutputStream(output);
+    MySerializableObject obj = new MySerializableObject();
+	objectOutput.writeObject(obj)
+}
+----
+
+== Exercices
+
+=== Exercice 1
+
+Dans la classe `ExceptionThrower`, implémentez la méthode `throwACustomExceptionWhenValueIs42` de manière à ce qu'une exception soit lancée lorsque le paramètre de la méthode vaut 42.
+Cette exception devra être une exception runtime que vous aurez créée.
+
+Dans la classe `ExceptionCatcher`, modifiez la méthode `executeExceptionThrowerSafely` de manière à récupérer cette exception pour qu'elle ne remonte pas au dehors de cette méthode.
+
+Des tests unitaires dans `src/test/java/exercise1` vous permettront d'évaluer votre avancement.
+
+=== Exercice 2
+
+Le package `exercise2` contient une série de classes. Vous devez modifier ces classes et implémenter les méthodes `save` et `load` de la classe `Exercise2`.
+
+Ici encore, lest tests unitaires de `src/test/java/exercise2` vous aideront à évaluer votre avancement.
+
+=== Exercice 3
+
+L'exercice sur les formes géométriques du TP précédent sera repris en vue d'y apporter les
+modifications suivantes:
+
+* possibilité d'enregistrer la liste des formes géométriques;
+* possibilité de récupérer à partir d'un fichier la liste de formes géométriques.
+
+La gestion des erreurs se fera à deux niveaux:
+
+* gérer les exceptions d'accès au système de fichier;
+* tester le caractère convexe des polygones introduits par l'utilisateur.
+
+[NOTE]
+====
+Soit un polygone défini par l'ensemble de ses sommets.
+Ce polygone est convexe si le sinus de l'angle entre chaque couple de segments successifs est toujours positif ou toujours négatif.
+
+Le sinus de l'angle entre 2 segments peut être obtenu à l'aide de la formule ci-dessous.
+
+.Calcul du sinus de l'angle entre 2 segments
+image::images/convex-polygon-test.svg[align="center", scaledwidth="40%"]
+====
+
+[bibliography]
+== Références
+
+* Deitel, H. M. & Deitel, P. J. (2002), _JAVA Comment programmer – Quatrième édition_. Les éditions Reynald Goulet INC.
+* Manneback, P. & Frémal, S. (2014-2015) _Travaux pratiques de Méthodologie et Langage de Programmation_. UMons.
+* Manneback, P. (2005-2006) _Méthodologie et Langages de Programmation_. UMons.
+* _Java Platform Standard Edition 8 Documentation_. Récupéré de https://docs.oracle.com/javase/8/docs/
