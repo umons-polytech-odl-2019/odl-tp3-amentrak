@@ -12,7 +12,7 @@ public class ExceptionThrowerTest {
 	}
 
 	@Test
-	public void throwACustomExceptionWhenValueIs42_with_any_other_value() {
+	public void throwACustomExceptionWhenValueIs42_with_any_other_value() throws ExceptionWhenValueIs42 {
 		ExceptionThrower exercise1 = new ExceptionThrower();
 		for (int i = 0; i < 100; i++) {
 			if (i != 42) {
