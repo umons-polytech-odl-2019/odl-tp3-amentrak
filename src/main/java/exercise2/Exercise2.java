@@ -1,18 +1,26 @@
 package exercise2;
 
-import java.io.IOException;
+import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.LocalDate;
 
 public class Exercise2 {
-	public static void save(Classroom classroom, Path filePath) {
+	public static void save(Classroom classroom, Path filePath) throws IOException {
+		try (OutputStream out = Files.newOutputStream(filePath)) {
+			ObjectOutput oos = new ObjectOutputStream(out);
+			oos.writeObject(classroom);
 
+		} catch (IOException e) {
+		}
 	}
-
-	public static Classroom load(Path filePath) {
-		return null;
+	public static Classroom load(Path filePath) throws IOException, ClassNotFoundException{
+		try (InputStream in = Files.newInputStream(filePath)){
+			ObjectInput ois = new ObjectInputStream(in);
+		}
+		catch (IOException e){}
+		catch (ClassNotFoundException e){}
 	}
 
 	public static void main(String[] args) throws IOException {
